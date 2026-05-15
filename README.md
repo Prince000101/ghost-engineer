@@ -1,172 +1,178 @@
 # Ghost Engineer
 
-A desktop application that generates realistic, backdated commit histories across your GitHub repositories. Features multi-user profiles, SSH key management, and per-repository configuration — all through a dark-themed customtkinter GUI.
+A desktop app that fills your GitHub contribution graph with realistic-looking past commits. It creates random code files, commits them with backdated timestamps, pushes to your repo, then **deletes all the temporary files** — leaving zero mess behind.
 
-> **⚠️ Disclaimer:** This tool creates artificial commit activity. Use it for portfolio demonstration purposes only. Artificially inflating contribution graphs may violate GitHub's terms of service.
+> **⚠️ Disclaimer:** This tool generates artificial commit activity. Use for portfolio demonstration only. Artificially inflating contribution graphs may violate GitHub's terms of service.
 
 ---
 
-## Features
+## What it does (in simple words)
 
-- **Multi-user profiles** — each user has their own account, SSH keys, tokens, and repo list. Passwords hashed with PBKDF2.
-- **SSH key management** — generate ed25519 keys or import existing ones directly in the app. One-click copy to clipboard. Links to GitHub's SSH settings page.
-- **GitHub token support** — store a personal access token for HTTPS remotes.
-- **Per-repo config** — add any number of repos with local path + remote URL. The app can clone repos that don't exist locally yet.
-- **Realistic commit generation** — commits are backdated across multiple days with natural time distributions (peak hours weighted higher). Includes:
-  - **Dynamic messages** — conventional commits format (`feat(scope): description`), ~18% with multi-line bodies, ~20% with issue references, ~6% with co-authors
-  - **Real code changes** — 8 file types with templated content (Python, JS/TS, CSS/SCSS, HTML, JSON, YAML, shell scripts, SQL, Markdown docs)
-  - **Multi-file commits** — 25% of commits touch 2-4 files at once
-  - **File continuity** — the same files get modified across multiple commits, mimicking real feature development
-  - **Natural scheduling** — weekends get fewer commits, no commits between midnight-7am
-- **Safe branching** — all commits go to an `activity/YYYYMMDD-HHMMSS` branch, never touching main
-- **Custom dark-themed dialogs** — no jarring white popups
-- **Slide transitions** — smooth page animations between login, dashboard, and settings
+1. You tell it: "I want 50 commits spread over 7 days"
+2. It creates a hidden folder `_ge/` in your repo
+3. Every few minutes (backdated), it creates/modifies a random-looking source file inside `_ge/` and commits it
+4. When done, it pushes everything to GitHub, **deletes the `_ge/` folder**, and pushes the cleanup
+5. Your repo is clean — no leftover files, no mess
 
-## Screenshots
+**Result:** Your GitHub graph shows 7 days of green squares.
 
-*(Add screenshots here)*
+---
+
+## Safety features
+
+- **Never touches existing files** — checks every path before writing; if a file already exists, it skips it
+- **Never touches README, LICENSE, .gitignore** — protected files are blocked at the code level
+- **All generated files go into a single folder (`_ge/`)** — never scattered across your repo
+- **Auto-cleanup** — after the last commit, the `_ge/` folder is deleted and the deletion is committed + pushed
+- **One-click delete** — the X button on any repo removes it instantly, no confirmation popup
+
+---
 
 ## Requirements
 
 - **Python 3.10+**
 - **Git 2.20+**
-- **pip** (for installing the dependency)
+- **pip** (for installing the one dependency)
 
 ## Installation
 
 ```bash
-# Clone the repository
-git clone https://github.com/yourusername/ghost-engineer.git
+# 1. Download
+git clone https://github.com/Prince000101/ghost-engineer.git
 cd ghost-engineer
 
-# Install the only dependency
+# 2. Install the only dependency
 pip install customtkinter
 
-# Run it
+# 3. Run it
 python3 main.py
 ```
 
-No other dependencies needed — everything else is Python standard library.
+That's it. All other modules are Python standard library — no extra packages needed.
+
+On first run, the app creates a `data/` folder (gitignored) to store your settings, SSH keys, and tokens locally.
 
 ## Quick Start
 
-### 1. Create your account
+### 1. Set your identity
 
-Launch the app. On first run, it shows a "Create Account" form. Pick any username and password (4+ characters). Email is optional.
+Go to **Settings** → enter your GitHub username and email → click **Save Identity**.  
+An SSH key is auto-generated for you.
 
-### 2. Set up an SSH key
+### 2. Authenticate
 
-Go to **Settings** and click **Generate New Key**. The app creates an ed25519 key pair and offers to open GitHub's SSH settings page. Copy your public key and add it there.
-
-> HTTPS users: instead of SSH, go to Settings and paste a [GitHub personal access token](https://github.com/settings/tokens).
+Choose one:
+- **SSH**: Copy your public key from Settings and add it at [github.com/settings/keys](https://github.com/settings/keys)
+- **HTTPS**: Go to Settings and paste a [GitHub personal access token](https://github.com/settings/tokens) (needs `repo` scope)
 
 ### 3. Add a repository
 
 From the **Dashboard**, click **+ Add**. Fill in:
 - **Project Name** — any label (e.g. `my-api`)
-- **Local Path** — where the repo lives on disk (leave blank to auto-clone)
+- **Local Path** — where the repo is on disk (leave blank to auto-clone)
 - **Remote URL** — `git@github.com:user/repo.git` (SSH) or `https://github.com/user/repo.git` (HTTPS)
+
+You can also click **Scan Directory** to auto-detect Git repos in a folder.
 
 ### 4. Generate commits
 
-Select the repo from the list, adjust the sliders:
-- **Total Commits** — how many commits to generate (10–200)
-- **Spread (days)** — distribute them across how many days (1–60)
+Select a repo from the list, adjust the sliders:
+- **Total Commits** — how many (10–200)
+- **Spread (days)** — distribute across how many days (1–60)
 
-Click **🚀 Start Ghosting**. The console logs progress in real-time. When done, the `activity/...` branch is pushed to GitHub.
+Click **🚀 Start Ghosting**. The console shows progress in real-time.  
+Or click **🎲 Random Ghost** for a random commit burst.
 
-You can review the branch on GitHub and merge it into main if desired.
+When done, you'll see in green:
+
+```
+✓ Done — 50 commits across 7 days pushed to 'main'
+✓ Ghost files deleted from repo and pushed — clean ✓
+✓ All done — changes committed, pushed, and cleaned ✓
+✓ Restoring your uncommitted changes...
+```
+
+---
 
 ## Project Structure
 
 ```
 ghost-engineer/
-├── main.py              ← Entry point
-├── engine.py            ← Commit generation engine
-├── user_manager.py      ← User auth, SSH keys, credentials, repos
-├── messages.py          ← Fallback commit messages
-├── requirements.txt     ← customtkinter
+├── main.py              ← Entry point — starts the desktop app
+├── engine.py            ← Commit engine — creates files, commits, pushes, cleans up
+├── config_manager.py    ← Manages repos, SSH keys, tokens, identity
+├── messages.py          ← Pre-written commit messages (fallback pool)
+├── requirements.txt     ← Only dependency: customtkinter
+├── .gitignore           ← Excludes data/ and __pycache__/
 ├── ui/
-│   ├── __init__.py
-│   ├── login.py         ← Login / Register screen
-│   ├── dashboard.py     ← Main dashboard
-│   ├── settings.py      ← SSH key & token management
-│   └── dialogs.py       ← Custom dark-themed popups
-└── data/                ← Created at runtime (stored locally)
-    ├── users.json       ← Hashed passwords
-    ├── keys/            ← SSH key pairs per user
-    └── configs/         ← Repo lists and tokens per user
+│   ├── dashboard.py     ← Main screen — repo list, sliders, start/random buttons, console
+│   ├── settings.py      ← Settings — identity, SSH keys, tokens
+│   └── dialogs.py       ← Dark-themed popup dialogs (confirm, info, errors)
+└── data/                ← Created at runtime — gitignored, stays local
+    ├── config.json      ← Repos, token, git identity
+    ├── keys/            ← SSH key pairs
+    ├── configs/         ← Per-user configs
+    └── users.json       ← User data (local only)
 ```
 
-## How it works
+---
+
+## How commits are generated
 
 ### Time distribution
 
-Commits are spread across waking hours (8 AM – 11 PM) with a realistic peak weight:
+Commits are spread across waking hours (8 AM – 11 PM) with realistic peak weighting:
 
-| Hour | Weight |
-|------|--------|
+| Period | Weight |
+|--------|--------|
 | 8 AM | Low |
 | 9-11 AM | High |
 | 12 PM | Medium |
 | 1-5 PM | High |
 | 6-11 PM | Low |
 
-Weekends receive ~30% the commit volume of weekdays, with a higher chance of having zero commits.
+Weekends receive ~30% the commit volume of weekdays.
 
 ### Commit types
 
-| Type | Weight | Description |
-|---|---|---|
+| Type | Chance | Description |
+|------|--------|-------------|
 | Single file | 50% | Creates or appends to one source file |
 | Multi-file | 25% | Changes 2-4 files simultaneously |
-| Documentation | 20% | Adds or updates docs |
-| Empty | 5% | `--allow-empty` commits (rare) |
+| Documentation | 20% | Adds Markdown docs |
+| Empty | 5% | `--allow-empty` commit (rare) |
 
-### File pools
+### File content
 
-Files are organized into 8 modules with ~80 total paths:
+8 file types with realistic templated content:
+- Python, JavaScript, TypeScript, CSS/SCSS, HTML, JSON, YAML, Shell, SQL, Markdown
 
-- `auth/` — login, registration, sessions, permissions
-- `api/` — routes, middleware, serializers, pagination
-- `db/` — models, migrations, queries, connection pool
-- `ui/` — components (Button, Modal, Table), pages, hooks, styles
-- `core/` — config, logging, cache, events, health checks
-- `deps/` — requirements.txt, package.json, Docker configs
-- `ci/` — GitHub Actions workflows, deploy scripts, Makefile
-- `docs/` — README, contributing guide, API docs
+Each file gets a unique name like `update_handler_base.py` or `fix_service_core.ts`.  
+Messages follow conventional commits: `feat(api): add pagination support...`
 
-Each commit picks files from a module, creating new files on first touch and appending content on subsequent modifications.
-
-## Security
-
-- Passwords are hashed with **PBKDF2-SHA256** (100,000 iterations, random 128-bit salt)
-- SSH keys are stored in `data/keys/<username>/` with `chmod 600`
-- GitHub tokens are stored in `data/configs/<username>.json`
-- All data stays **local** — no telemetry, no cloud sync, no network calls except git operations
-- The app never sends data anywhere except to `git push` targets you configure
+---
 
 ## FAQ
 
 **Q: Does this actually push to GitHub?**  
-Yes. It runs `git push` just like you would from the terminal. It uses your SSH key or GitHub token for authentication.
+Yes. It runs `git push` using your SSH key or GitHub token.
 
-**Q: Will GitHub show these commits in my contribution graph?**  
-Yes, commits pushed to the default branch (or any branch that eventually merges) count toward the contribution graph.
+**Q: Will it show on my contribution graph?**  
+Yes — commits pushed to the default branch count toward the graph.
 
-**Q: Can I use this with private repos?**  
-Yes. Works with any Git remote — GitHub, GitLab, self-hosted, or local bare repos.
+**Q: Can I use it with private repos?**  
+Yes. Works with GitHub, GitLab, self-hosted, or local bare repos.
 
-**Q: What happens to my existing changes?**  
-The engine stashes any uncommitted changes before starting and leaves them intact on the original branch.
+**Q: Will it mess up my existing files?**  
+No. The code explicitly checks: never writes to a file that already exists, never touches protected files (README, LICENSE, .gitignore).
 
-**Q: How do I merge the activity into main?**  
-On GitHub, create a pull request from the `activity/...` branch and merge it. Or locally:
-```bash
-git checkout main
-git merge activity/20260514-223315
-git push
-```
+**Q: What about my uncommitted changes?**  
+The engine stashes them before starting and restores them when done.
+
+**Q: How does cleanup work?**  
+All generated files go into `_ge/`. After the final push, the engine runs `git rm -rf _ge/`, commits the deletion, and pushes it. Zero traces left.
+
+---
 
 ## License
 
