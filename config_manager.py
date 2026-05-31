@@ -1,9 +1,10 @@
 import os
+import sys
 import json
 import subprocess
 import shutil
 
-DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+DATA_DIR = os.path.join(os.path.expanduser("~"), ".ghost-engineer")
 
 
 class ConfigManager:

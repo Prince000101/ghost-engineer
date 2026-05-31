@@ -32,25 +32,44 @@ A desktop app that fills your GitHub contribution graph with realistic-looking p
 
 - **Python 3.10+**
 - **Git 2.20+**
-- **pip** (for installing the one dependency)
+- **pip** (for installing dependencies)
 
 ## Installation
+
+### Linux / macOS
 
 ```bash
 # 1. Download
 git clone https://github.com/Prince000101/ghost-engineer.git
 cd ghost-engineer
 
-# 2. Install the only dependency
+# 2. Install dependencies
 pip install customtkinter
 
 # 3. Run it
 python3 main.py
 ```
 
-That's it. All other modules are Python standard library — no extra packages needed.
+### Windows
 
-On first run, the app creates a `data/` folder (gitignored) to store your settings, SSH keys, and tokens locally.
+1. Install [Python 3.12+](https://www.python.org/downloads/) (check **Add to PATH**)
+2. Install [Git for Windows](https://git-scm.com/download/win)
+3. Double-click `setup_windows.bat` — it installs everything and puts `GhostEngineer.exe` on your desktop
+
+Or manually:
+```cmd
+pip install customtkinter pyinstaller
+pyinstaller --onefile --windowed --name "GhostEngineer.exe" --add-data "ui;ui" main.py
+```
+
+### Standalone executable (no Python needed)
+
+Run the build script for your platform, then move the executable anywhere:
+
+**Linux/macOS:** `./build.sh` → `dist/GhostEngineer`
+**Windows:**   `setup_windows.bat` → `%USERPROFILE%\Desktop\GhostEngineer.exe`
+
+Data is stored in `~/.ghost-engineer/` (`C:\Users\<you>\.ghost-engineer\` on Windows) — a hidden folder in your home directory, so you can put the executable anywhere without losing your config, SSH keys, or repos.
 
 ## Quick Start
 
@@ -103,16 +122,21 @@ ghost-engineer/
 ├── config_manager.py    ← Manages repos, SSH keys, tokens, identity
 ├── messages.py          ← Pre-written commit messages (fallback pool)
 ├── requirements.txt     ← Only dependency: customtkinter
-├── .gitignore           ← Excludes data/ and __pycache__/
+├── .gitignore           ← Excludes data/, build/, dist/ and __pycache__/
+├── build.sh             ← Linux build script (creates standalone executable)
+├── setup_windows.bat    ← Windows setup script (installs + builds + deploys)
 ├── ui/
 │   ├── dashboard.py     ← Main screen — repo list, sliders, start/random buttons, console
 │   ├── settings.py      ← Settings — identity, SSH keys, tokens
 │   └── dialogs.py       ← Dark-themed popup dialogs (confirm, info, errors)
-└── data/                ← Created at runtime — gitignored, stays local
+└── data/                ← Development config (for running from source)
     ├── config.json      ← Repos, token, git identity
     ├── keys/            ← SSH key pairs
     ├── configs/         ← Per-user configs
     └── users.json       ← User data (local only)
+
+When built as a standalone executable, data is stored in `~/.ghost-engineer/`
+(not alongside the executable), so you can put the binary anywhere.
 ```
 
 ---
