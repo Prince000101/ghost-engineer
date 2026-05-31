@@ -1,108 +1,207 @@
-# Ghost Engineer
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white">
+  <img src="https://img.shields.io/badge/Platform-Linux%20%7C%20Windows%20%7C%20macOS-8A2BE2">
+  <img src="https://img.shields.io/badge/License-MIT-green">
+  <img src="https://img.shields.io/badge/PRs-welcome-brightgreen">
+</p>
 
-A desktop app that fills your GitHub contribution graph with realistic-looking past commits. It creates random code files, commits them with backdated timestamps, pushes to your repo, then **deletes all the temporary files** — leaving zero mess behind.
+<h1 align="center">👻 Ghost Engineer</h1>
+<p align="center"><i>Fill your GitHub contribution graph with realistic past commits — and leave zero traces.</i></p>
+
+---
 
 > **⚠️ Disclaimer:** This tool generates artificial commit activity. Use for portfolio demonstration only. Artificially inflating contribution graphs may violate GitHub's terms of service.
 
 ---
 
-## What it does (in simple words)
+## 📖 What it does
 
-1. You tell it: "I want 50 commits spread over 7 days"
-2. It creates a hidden folder `_ge/` in your repo
-3. Every few minutes (backdated), it creates/modifies a random-looking source file inside `_ge/` and commits it
-4. When done, it pushes everything to GitHub, **deletes the `_ge/` folder**, and pushes the cleanup
-5. Your repo is clean — no leftover files, no mess
+| Step | What happens |
+|------|-------------|
+| **1** | You set: *"50 commits spread over 7 days"* |
+| **2** | Creates a hidden `_ge/` folder in your repo |
+| **3** | Generates random source files with realistic content & backdates each commit |
+| **4** | Pushes everything to GitHub |
+| **5** | **Deletes `_ge/`** and pushes the cleanup — zero traces left |
 
-**Result:** Your GitHub graph shows 7 days of green squares.
-
----
-
-## Safety features
-
-- **Never touches existing files** — checks every path before writing; if a file already exists, it skips it
-- **Never touches README, LICENSE, .gitignore** — protected files are blocked at the code level
-- **All generated files go into a single folder (`_ge/`)** — never scattered across your repo
-- **Auto-cleanup** — after the last commit, the `_ge/` folder is deleted and the deletion is committed + pushed
-- **One-click delete** — the X button on any repo removes it instantly, no confirmation popup
+✅ **Result:** Your GitHub graph shows 7 days of green squares. Your repo is spotless.
 
 ---
 
-## Requirements
+## 🛡️ Safety features
 
-- **Python 3.10+**
-- **Git 2.20+**
-- **pip** (for installing dependencies)
+- ✅ **Never touches existing files** — checks every path before writing
+- ✅ **Protected files** — README, LICENSE, .gitignore are blocked at the code level
+- ✅ **All garbage goes in `_ge/`** — never scattered across your repo
+- ✅ **Auto-cleanup** — `git rm -rf _ge/` after the final push
+- ✅ **Stash & restore** — your uncommitted work is saved and reapplied
 
-## Installation
+---
 
-### Linux / macOS
+## 📥 Download
+
+### Pre-built executable (no Python required)
+
+| Platform | File | How to get it |
+|----------|------|--------------|
+| 🐧 **Linux** | `GhostEngineer` | Run `./build.sh` in the cloned repo → `dist/GhostEngineer` |
+| 🪟 **Windows** | `GhostEngineer.exe` | Run `setup_windows.bat` → desktop shortcut created automatically |
+| 🍎 **macOS** | `GhostEngineer` | Run `./build.sh` in the cloned repo → `dist/GhostEngineer` |
+
+### Run from source
 
 ```bash
-# 1. Download
+git clone https://github.com/Prince000101/ghost-engineer.git
+cd ghost-engineer
+pip install customtkinter
+python3 main.py          # Linux/macOS
+# or: python main.py     # Windows
+```
+
+---
+
+## 🚀 Setup
+
+### Linux
+
+```bash
+# 1. Clone
 git clone https://github.com/Prince000101/ghost-engineer.git
 cd ghost-engineer
 
-# 2. Install dependencies
-pip install customtkinter
+# 2. Build standalone executable
+./build.sh
 
-# 3. Run it
-python3 main.py
+# 3. Put it on your desktop
+cp dist/GhostEngineer ~/Desktop/
+
+# 4. Pre-populate your data (if migrating from source)
+cp -r data/ ~/.ghost-engineer/
+
+# 5. Create desktop launcher icon
+cat > ~/Desktop/ghost-engineer.desktop << 'EOF'
+[Desktop Entry]
+Type=Application
+Name=Ghost Engineer
+Comment=Generate realistic git commit histories
+Exec=/home/$USER/Desktop/GhostEngineer
+Icon=utilities-terminal
+Terminal=false
+Categories=Development;Utility;
+EOF
+
+chmod +x ~/Desktop/ghost-engineer.desktop
+
+# Allow launching (GNOME)
+gio set ~/Desktop/ghost-engineer.desktop metadata::trusted true
+# or (KDE / others)
+chmod +x ~/Desktop/GhostEngineer
 ```
+
+<details>
+<summary><b>🐧 Linux — app menu launcher (optional)</b></summary>
+
+```bash
+# Install system-wide (app launcher + PATH)
+sudo cp dist/GhostEngineer /usr/local/bin/ghost-engineer
+
+# App menu entry
+sudo tee /usr/share/applications/ghost-engineer.desktop > /dev/null << 'EOF'
+[Desktop Entry]
+Type=Application
+Name=Ghost Engineer
+Comment=Generate realistic git commit histories
+Exec=/usr/local/bin/ghost-engineer
+Icon=utilities-terminal
+Terminal=false
+Categories=Development;Utility;
+EOF
+```
+</details>
+
+---
 
 ### Windows
 
-1. Install [Python 3.12+](https://www.python.org/downloads/) (check **Add to PATH**)
-2. Install [Git for Windows](https://git-scm.com/download/win)
-3. Double-click `setup_windows.bat` — it installs everything and puts `GhostEngineer.exe` on your desktop
-
-Or manually:
 ```cmd
-pip install customtkinter pyinstaller
-pyinstaller --onefile --windowed --name "GhostEngineer.exe" --add-data "ui;ui" main.py
+:: 1. Clone the repo (or download ZIP from GitHub)
+git clone https://github.com/Prince000101/ghost-engineer.git
+cd ghost-engineer
+
+:: 2. Double-click setup_windows.bat — it does everything:
+::    - Checks Python & Git are installed
+::    - Installs dependencies (customtkinter, pyinstaller)
+::    - Builds GhostEngineer.exe
+::    - Copies it to your desktop
+::    - Migrates config to C:\Users\<you>\.ghost-engineer\
 ```
 
-### Standalone executable (no Python needed)
+<details>
+<summary><b>🪟 Windows — desktop icon (manual)</b></summary>
 
-Run the build script for your platform, then move the executable anywhere:
+```cmd
+:: The .exe is already on your desktop after setup_windows.bat.
+:: To pin to taskbar: right-click GhostEngineer.exe → "Pin to taskbar"
+:: To create a shortcut: right-click → "Send to" → "Desktop (create shortcut)"
+```
+</details>
 
-**Linux/macOS:** `./build.sh` → `dist/GhostEngineer`
-**Windows:**   `setup_windows.bat` → `%USERPROFILE%\Desktop\GhostEngineer.exe`
+---
 
-Data is stored in `~/.ghost-engineer/` (`C:\Users\<you>\.ghost-engineer\` on Windows) — a hidden folder in your home directory, so you can put the executable anywhere without losing your config, SSH keys, or repos.
+### macOS
 
-## Quick Start
+```bash
+# Clone & build
+git clone https://github.com/Prince000101/ghost-engineer.git
+cd ghost-engineer
+./build.sh
 
-### 1. Set your identity
+# Copy to desktop
+cp dist/GhostEngineer ~/Desktop/
 
-Go to **Settings** → enter your GitHub username and email → click **Save Identity**.  
-An SSH key is auto-generated for you.
+# Optional: create a .app bundle
+cat > ~/Desktop/GhostEngineer.app/Contents/MacOS/GhostEngineer << 'EOF'
+#!/bin/bash
+exec "$(dirname "$0")/../../GhostEngineer"
+EOF
+chmod +x ~/Desktop/GhostEngineer.app/Contents/MacOS/GhostEngineer
+```
 
-### 2. Authenticate
+---
 
-Choose one:
-- **SSH**: Copy your public key from Settings and add it at [github.com/settings/keys](https://github.com/settings/keys)
-- **HTTPS**: Go to Settings and paste a [GitHub personal access token](https://github.com/settings/tokens) (needs `repo` scope)
+## ⚡ Quick Start
 
-### 3. Add a repository
+### 1️⃣ Set your identity
 
-From the **Dashboard**, click **+ Add**. Fill in:
-- **Project Name** — any label (e.g. `my-api`)
-- **Local Path** — where the repo is on disk (leave blank to auto-clone)
-- **Remote URL** — `git@github.com:user/repo.git` (SSH) or `https://github.com/user/repo.git` (HTTPS)
+Go to **Settings** → enter your GitHub username + email → **Save Identity**.  
+An SSH key is generated automatically.
 
-You can also click **Scan Directory** to auto-detect Git repos in a folder.
+### 2️⃣ Authenticate
 
-### 4. Generate commits
+| Method | What to do |
+|--------|-----------|
+| 🔑 **SSH** | Copy your public key from Settings → add at [github.com/settings/keys](https://github.com/settings/keys) |
+| 🔐 **HTTPS** | Paste a [GitHub token](https://github.com/settings/tokens) (`repo` scope) in Settings |
 
-Select a repo from the list, adjust the sliders:
-- **Total Commits** — how many (10–200)
-- **Spread (days)** — distribute across how many days (1–60)
+### 3️⃣ Add a repo
 
-Click **🚀 Start Ghosting**. The console shows progress in real-time.  
-Or click **🎲 Random Ghost** for a random commit burst.
+From **Dashboard** → **+ Add**:
 
-When done, you'll see in green:
+| Field | What to enter |
+|-------|--------------|
+| **Project Name** | Any label (e.g. `my-api`) |
+| **Local Path** | Leave blank to auto-clone, or browse to existing repo |
+| **Remote URL** | `git@github.com:user/repo.git` (SSH) or `https://github.com/user/repo.git` (HTTPS) |
+
+💡 Click **Scan Directory** to auto-detect Git repos in a folder.
+
+### 4️⃣ Generate commits
+
+1. Select a repo from the list
+2. Adjust sliders: **Total Commits** (10–200) × **Spread** (1–60 days)
+3. Click **🚀 Start Ghosting** — or **🎲 Random Ghost** for surprise settings
+
+✅ When done, the console shows:
 
 ```
 ✓ Done — 50 commits across 7 days pushed to 'main'
@@ -113,91 +212,99 @@ When done, you'll see in green:
 
 ---
 
-## Project Structure
+## 📁 Project Structure
 
 ```
 ghost-engineer/
-├── main.py              ← Entry point — starts the desktop app
-├── engine.py            ← Commit engine — creates files, commits, pushes, cleans up
-├── config_manager.py    ← Manages repos, SSH keys, tokens, identity
-├── messages.py          ← Pre-written commit messages (fallback pool)
-├── requirements.txt     ← Only dependency: customtkinter
-├── .gitignore           ← Excludes data/, build/, dist/ and __pycache__/
-├── build.sh             ← Linux build script (creates standalone executable)
-├── setup_windows.bat    ← Windows setup script (installs + builds + deploys)
+├── main.py               🟢 Entry point — starts the desktop app
+├── engine.py             🔧 Commit engine — creates files, commits, pushes, cleans up
+├── config_manager.py     ⚙️  Config — repos, SSH keys, tokens, identity
+├── messages.py           💬 Pre-written commit messages (fallback pool)
+├── requirements.txt      📦 Only dependency: customtkinter
+├── build.sh              🐧 Linux/macOS build script
+├── setup_windows.bat     🪟 Windows setup script
+├── .gitignore
 ├── ui/
-│   ├── dashboard.py     ← Main screen — repo list, sliders, start/random buttons, console
-│   ├── settings.py      ← Settings — identity, SSH keys, tokens
-│   └── dialogs.py       ← Dark-themed popup dialogs (confirm, info, errors)
-└── data/                ← Development config (for running from source)
-    ├── config.json      ← Repos, token, git identity
-    ├── keys/            ← SSH key pairs
-    ├── configs/         ← Per-user configs
-    └── users.json       ← User data (local only)
-
-When built as a standalone executable, data is stored in `~/.ghost-engineer/`
-(not alongside the executable), so you can put the binary anywhere.
+│   ├── dashboard.py      📊 Main screen — repo list, sliders, start/random, console
+│   ├── settings.py       ⚙️  Settings — identity, SSH keys, tokens
+│   └── dialogs.py        🗔  Dark-themed popup dialogs
+└── data/                 📂 Dev config (gitignored)
+    ├── config.json       ← Repos, token, git identity
+    ├── keys/             ← SSH key pairs
+    └── users.json
 ```
 
----
-
-## How commits are generated
-
-### Time distribution
-
-Commits are spread across waking hours (8 AM – 11 PM) with realistic peak weighting:
-
-| Period | Weight |
-|--------|--------|
-| 8 AM | Low |
-| 9-11 AM | High |
-| 12 PM | Medium |
-| 1-5 PM | High |
-| 6-11 PM | Low |
-
-Weekends receive ~30% the commit volume of weekdays.
-
-### Commit types
-
-| Type | Chance | Description |
-|------|--------|-------------|
-| Single file | 50% | Creates or appends to one source file |
-| Multi-file | 25% | Changes 2-4 files simultaneously |
-| Documentation | 20% | Adds Markdown docs |
-| Empty | 5% | `--allow-empty` commit (rare) |
-
-### File content
-
-8 file types with realistic templated content:
-- Python, JavaScript, TypeScript, CSS/SCSS, HTML, JSON, YAML, Shell, SQL, Markdown
-
-Each file gets a unique name like `update_handler_base.py` or `fix_service_core.ts`.  
-Messages follow conventional commits: `feat(api): add pagination support...`
+**Data is stored in `~/.ghost-engineer/`** (Linux/macOS) or `C:\Users\<you>\.ghost-engineer\` (Windows) — a hidden folder in your home directory. The executable is portable and keeps nothing alongside itself.
 
 ---
 
-## FAQ
+## 🧠 How commits are generated
 
-**Q: Does this actually push to GitHub?**  
-Yes. It runs `git push` using your SSH key or GitHub token.
+### ⏰ Time distribution
 
-**Q: Will it show on my contribution graph?**  
-Yes — commits pushed to the default branch count toward the graph.
+Commits span waking hours (08:00–23:00) with realistic peaks:
 
-**Q: Can I use it with private repos?**  
-Yes. Works with GitHub, GitLab, self-hosted, or local bare repos.
+| Hours | Weight | Activity level |
+|-------|--------|:--------------:|
+| 08:00 | Low | 🌅 |
+| 09:00–11:00 | **High** | 🔥🔥🔥 |
+| 12:00 | Medium | 🔥🔥 |
+| 13:00–17:00 | **High** | 🔥🔥🔥 |
+| 18:00–23:00 | Low | 🔥 |
 
-**Q: Will it mess up my existing files?**  
-No. The code explicitly checks: never writes to a file that already exists, never touches protected files (README, LICENSE, .gitignore).
+📅 Weekends get ~30% the volume of weekdays.
 
-**Q: What about my uncommitted changes?**  
-The engine stashes them before starting and restores them when done.
+### 📦 Commit types
 
-**Q: How does cleanup work?**  
-All generated files go into `_ge/`. After the final push, the engine runs `git rm -rf _ge/`, commits the deletion, and pushes it. Zero traces left.
+| Type | Chance | What it does |
+|------|:------:|-------------|
+| **Single file** | 50% | Creates or appends to one source file |
+| **Multi-file** | 25% | Changes 2–4 files simultaneously |
+| **Documentation** | 20% | Adds Markdown docs |
+| **Empty** | 5% | `--allow-empty` (rare) |
+
+### 📄 File templates
+
+10+ languages with realistic templated content: Python, JavaScript, TypeScript, CSS, SCSS, HTML, JSON, YAML, Shell, SQL, Markdown.
+
+Filenames look like `update_handler_base.py`, messages follow conventional commits: `feat(api): add pagination support to query handler`.
 
 ---
 
-## License
+## ❓ FAQ
 
-MIT
+<details>
+<summary><b>Does this actually push to GitHub?</b></summary>
+Yes. It runs <code>git push</code> using your SSH key or GitHub token.
+</details>
+
+<details>
+<summary><b>Will it show on my contribution graph?</b></summary>
+Yes — commits pushed to the default branch count toward the graph. Past dates appear in the correct position.
+</details>
+
+<details>
+<summary><b>Can I use it with private repos?</b></summary>
+Yes. Works with GitHub, GitLab, self-hosted, or even local bare repos.
+</details>
+
+<details>
+<summary><b>Will it mess up my existing files?</b></summary>
+No. The code explicitly checks: never writes to an existing file, never touches protected files (README, LICENSE, .gitignore).
+</details>
+
+<details>
+<summary><b>What about my uncommitted changes?</b></summary>
+The engine stashes them before starting and restores them when done — your working tree is untouched.
+</details>
+
+<details>
+<summary><b>How does cleanup work?</b></summary>
+All generated files go into <code>_ge/</code>. After the final push, the engine runs <code>git rm -rf _ge/</code>, commits the deletion, and pushes it. Zero traces left.
+</details>
+
+---
+
+## 📜 License
+
+MIT — do whatever you want, just don't blame me.
