@@ -537,18 +537,12 @@ class GhostEngine:
         return result
 
     def _ensure_git_config(self, repo_path, git_name=None, git_email=None):
-        for key in ("user.name", "user.email"):
-            r = self._run_git(["config", key], cwd=repo_path)
-            if r.returncode == 0 and r.stdout.strip():
-                continue
-            if key == "user.name" and git_name:
-                self._run_git(["config", key, git_name], cwd=repo_path)
-            elif key == "user.email" and git_email:
-                self._run_git(["config", key, git_email], cwd=repo_path)
-            else:
-                raise RuntimeError(
-                    f"Git '{key}' is not set. Set your name and email in Settings."
-                )
+        if not git_name or not git_email:
+            raise RuntimeError(
+                "Name and email not set. Go to Settings and save your identity."
+            )
+        self._run_git(["config", "user.name", git_name], cwd=repo_path)
+        self._run_git(["config", "user.email", git_email], cwd=repo_path)
 
     def _detect_default_branch(self, repo_path):
         r = self._run_git(["symbolic-ref", "refs/remotes/origin/HEAD"], cwd=repo_path)
@@ -561,11 +555,66 @@ class GhostEngine:
             r = self._run_git(["show-ref", f"refs/remotes/origin/{candidate}"], cwd=repo_path)
             if r.returncode == 0:
                 return candidate
+        r = self._run_git(["rev-parse", "--abbrev-ref", "HEAD"], cwd=repo_path)
+        if r.returncode == 0 and r.stdout.strip():
+            return r.stdout.strip()
         return "main"
 
     def _emit(self, callback, level, message):
         if callback:
             callback(level, message)
+
+    def _ensure_repo(self, path, remote, github_token, base_env, callback):
+        if os.path.exists(path):
+            r = self._run_git(["rev-parse", "--absolute-git-dir"], cwd=path, env=base_env)
+            if r.returncode == 0:
+                git_dir = os.path.abspath(r.stdout.strip())
+                repo_root = os.path.abspath(path)
+                if os.path.commonpath([git_dir, repo_root]) == repo_root:
+                    return True
+                self._emit(callback, "info", "Detected parent git repo -- creating standalone repo...")
+            else:
+                self._emit(callback, "info", "Path exists but is not a git repo -- initializing...")
+            r = self._run_git(["init"], cwd=path, env=base_env)
+            if r.returncode != 0:
+                raise RuntimeError(f"Failed to init repo:\n{r.stderr}")
+            return True
+
+        if remote:
+            clone_url = remote
+            if github_token and remote.startswith("https://"):
+                clone_url = remote.replace("https://", f"https://git:{github_token}@")
+            self._emit(callback, "info", f"Cloning {remote} ...")
+            r = self._run_git(["clone", clone_url, path], env=base_env)
+            if r.returncode != 0:
+                err = r.stderr.strip()
+                if "could not read from remote" in err.lower() or "permission denied" in err.lower():
+                    raise RuntimeError(
+                        "Clone failed - authentication error.\n"
+                        "* For SSH: set an SSH key in Settings and add to GitHub\n"
+                        "* For HTTPS: set a GitHub token in Settings"
+                    )
+                raise RuntimeError(f"Clone failed:\n{err}")
+            return True
+
+        self._emit(callback, "info", "Creating new local repository...")
+        os.makedirs(path, exist_ok=True)
+        r = self._run_git(["init"], cwd=path, env=base_env)
+        if r.returncode != 0:
+            raise RuntimeError(f"Failed to initialize repo:\n{r.stderr}")
+        self._emit(callback, "info", "Empty git repo created")
+        return True
+
+    def _ensure_initial_commit(self, path, base_env, callback):
+        r = self._run_git(["rev-parse", "HEAD"], cwd=path, env=base_env)
+        if r.returncode == 0:
+            return
+        noop = os.path.join(path, NOOP_FILE)
+        with open(noop, "w") as f:
+            f.write("ghost-engineer state\n")
+        self._run_git(["add", NOOP_FILE], cwd=path, env=base_env)
+        self._run_git(["commit", "-m", "chore: initialize repository"], cwd=path, env=base_env)
+        self._emit(callback, "info", "Initial commit created")
 
     def run(self, repo_path, repo_remote, num_commits, days_back=1,
             ssh_key_path=None, github_token=None, git_name=None,
@@ -586,35 +635,30 @@ class GhostEngine:
         elif github_token and remote.startswith("https://"):
             self._emit(callback, "info", "Using GitHub token for auth")
 
-        if not os.path.exists(path):
-            clone_url = remote
-            if github_token and remote.startswith("https://"):
-                clone_url = remote.replace(
-                    "https://", f"https://git:{github_token}@"
-                )
-            self._emit(callback, "info", f"Cloning {remote} …")
-            r = self._run_git(["clone", clone_url, path], env=base_env)
-            if r.returncode != 0:
-                err = r.stderr.strip()
-                if "could not read from remote" in err.lower() or "permission denied" in err.lower():
-                    raise RuntimeError(
-                        "Clone failed — authentication error.\n"
-                        "• For SSH: set an SSH key in Settings and add to GitHub\n"
-                        "• For HTTPS: set a GitHub token in Settings"
-                    )
-                raise RuntimeError(f"Clone failed:\n{err}")
-
+        self._ensure_repo(path, remote, github_token, base_env, callback)
         self._ensure_git_config(path, git_name, git_email)
+        self._ensure_initial_commit(path, base_env, callback)
 
         self._emit(callback, "info", "Stashing any uncommitted changes...")
         self._run_git(["stash", "push", "--include-untracked", "-m", "ghost-engineer-autostash"],
                        cwd=path, env=base_env)
 
         branch = self._detect_default_branch(path)
-        self._emit(callback, "info", f"Syncing with remote '{branch}'...")
-        self._run_git(["fetch", "origin"], cwd=path, env=base_env)
-        self._run_git(["checkout", branch], cwd=path, env=base_env)
-        self._run_git(["reset", "--hard", f"origin/{branch}"], cwd=path, env=base_env)
+
+        r = self._run_git(["remote", "get-url", "origin"], cwd=path, env=base_env)
+        has_remote = r.returncode == 0
+
+        if has_remote:
+            self._emit(callback, "info", f"Syncing with remote '{branch}'...")
+            self._run_git(["fetch", "origin"], cwd=path, env=base_env)
+            self._run_git(["checkout", branch], cwd=path, env=base_env)
+            self._run_git(["reset", "--hard", f"origin/{branch}"], cwd=path, env=base_env)
+        else:
+            self._emit(callback, "info", "No remote configured -- working locally")
+            r = self._run_git(["rev-parse", "--abbrev-ref", "HEAD"], cwd=path, env=base_env)
+            current = r.stdout.strip() if r.returncode == 0 else ""
+            if current != branch:
+                self._run_git(["checkout", "-B", branch], cwd=path, env=base_env)
 
         schedule = generate_daily_schedule(days_back, num_commits)
         total_planned = sum(schedule.values())
@@ -638,6 +682,10 @@ class GhostEngine:
             env = base_env.copy()
             env["GIT_AUTHOR_DATE"] = date_str
             env["GIT_COMMITTER_DATE"] = date_str
+            env["GIT_AUTHOR_NAME"] = git_name
+            env["GIT_AUTHOR_EMAIL"] = git_email
+            env["GIT_COMMITTER_NAME"] = git_name
+            env["GIT_COMMITTER_EMAIL"] = git_email
             msg = generate_commit_message()
 
             try:
@@ -744,54 +792,75 @@ class GhostEngine:
             self._emit(callback, "progress",
                 f"[{idx+1}/{total}] {day_label} {ts.strftime('%H:%M')}  {short}")
 
-        self._emit(callback, "info", f"\nPushing to '{branch}'...")
+        if has_remote:
+            self._emit(callback, "info", f"\nPushing to '{branch}'...")
+            push_failed = False
+            push_err = ""
+            try:
+                push_env = base_env.copy()
+                push_args = ["push", "origin", branch]
 
-        try:
-            push_env = base_env.copy()
-            push_args = ["push", "origin", branch]
+                if github_token and remote.startswith("https://"):
+                    authed_url = remote.replace(
+                        "https://", f"https://git:{github_token}@"
+                    )
+                    push_args = ["push", authed_url, branch]
 
-            if github_token and remote.startswith("https://"):
-                authed_url = remote.replace(
-                    "https://", f"https://git:{github_token}@"
-                )
-                push_args = ["push", authed_url, branch]
+                r = self._run_git(push_args, cwd=path, env=push_env)
 
-            r = self._run_git(push_args, cwd=path, env=push_env)
+                if r.returncode == 0:
+                    self._emit(callback, "success",
+                        f"Done -- {total} commits across {len(schedule)} days pushed to '{branch}'")
 
-            if r.returncode == 0:
-                self._emit(callback, "success",
-                    f"Done — {total} commits across {len(schedule)} days pushed to '{branch}'")
+                    if file_registry:
+                        self._emit(callback, "info", "Cleaning up generated files...")
+                        self._run_git(["rm", "-rf", GHOST_DIR], cwd=path)
+                        cleanup_msg = "cleanup: remove generated files"
+                        cr = self._run_git(["commit", "-m", cleanup_msg], cwd=path, env=base_env)
+                        if cr.returncode == 0:
+                            self._emit(callback, "info", "Pushing cleanup commit...")
+                            self._run_git(push_args, cwd=path, env=push_env)
+                            self._emit(callback, "success", "Ghost files deleted from repo and pushed -- clean")
+                            self._emit(callback, "success", "All done -- changes committed, pushed, and cleaned")
+                        else:
+                            self._emit(callback, "warning", "No files to clean up")
+                else:
+                    push_failed = True
+                    push_err = r.stderr
+            except Exception as e:
+                push_failed = True
+                push_err = str(e)
 
-                if file_registry:
-                    self._emit(callback, "info", "Cleaning up generated files...")
-                    self._run_git(["rm", "-rf", GHOST_DIR], cwd=path)
-                    cleanup_msg = "cleanup: remove generated files"
-                    cr = self._run_git(["commit", "-m", cleanup_msg], cwd=path, env=base_env)
-                    if cr.returncode == 0:
-                        self._emit(callback, "info", "Pushing cleanup commit...")
-                        self._run_git(push_args, cwd=path, env=push_env)
-                        self._emit(callback, "success", "Ghost files deleted from repo and pushed — clean ✓")
-                        self._emit(callback, "success", "All done — changes committed, pushed, and cleaned ✓")
-                    else:
-                        self._emit(callback, "warning", "No files to clean up")
-            else:
-                stderr_lower = r.stderr.lower()
+            if push_failed:
+                stderr_lower = push_err.lower()
                 if "could not read from remote" in stderr_lower or "permission denied" in stderr_lower:
                     raise RuntimeError(
-                        "Push failed — authentication error.\n"
-                        "• For SSH: add your public key at github.com/settings/keys\n"
-                        "• For HTTPS: set a valid GitHub token in Settings\n"
+                        "Push failed - authentication error.\n"
+                        "* For SSH: add your public key at github.com/settings/keys\n"
+                        "* For HTTPS: set a valid GitHub token in Settings\n"
                         "  (needs 'repo' scope)"
                     )
                 if "invalid username or token" in stderr_lower or "authentication failed" in stderr_lower:
                     raise RuntimeError(
-                        "Push failed — invalid token.\n"
+                        "Push failed - invalid token.\n"
                         "Go to Settings and paste a valid GitHub token\n"
                         "with at least 'repo' scope."
                     )
-                raise RuntimeError(f"Push failed:\n{r.stderr}")
-        finally:
-            self._emit(callback, "done", "Restoring your uncommitted changes...")
-            pop_r = self._run_git(["stash", "pop"], cwd=path, env=base_env)
-            if pop_r.returncode != 0 and "No stash entries" in pop_r.stderr:
-                pass  # nothing was stashed, that's fine
+                raise RuntimeError(f"Push failed:\n{push_err}")
+        else:
+            self._emit(callback, "success",
+                f"Done -- {total} commits across {len(schedule)} days (local repo only)")
+            if file_registry:
+                self._emit(callback, "info", "Cleaning up generated files...")
+                self._run_git(["rm", "-rf", GHOST_DIR], cwd=path)
+                cr = self._run_git(["commit", "-m", "cleanup: remove generated files"], cwd=path, env=base_env)
+                if cr.returncode == 0:
+                    self._emit(callback, "success", "Ghost files deleted -- clean")
+                else:
+                    self._emit(callback, "warning", "No files to clean up")
+            self._emit(callback, "success", "All done -- changes committed and cleaned")
+
+        self._emit(callback, "done", "Restoring your uncommitted changes...")
+        pop_r = self._run_git(["stash", "pop"], cwd=path, env=base_env)
+        if pop_r.returncode != 0 and "No stash entries" in pop_r.stderr:
+            pass  # nothing was stashed, that's fine

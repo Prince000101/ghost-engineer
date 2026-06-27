@@ -114,7 +114,10 @@ class ConfigManager:
         )
         if r.returncode != 0:
             raise RuntimeError(f"Failed to generate key:\n{r.stderr}")
-        os.chmod(priv, 0o600)
+        try:
+            os.chmod(priv, 0o600)
+        except PermissionError:
+            pass
         return priv
 
     def import_ssh_key(self, src):
@@ -124,7 +127,10 @@ class ConfigManager:
         self._rm_all(kd)
         dest = os.path.join(kd, os.path.basename(src))
         shutil.copy2(src, dest)
-        os.chmod(dest, 0o600)
+        try:
+            os.chmod(dest, 0o600)
+        except PermissionError:
+            pass
         pub_src = src + ".pub"
         if os.path.exists(pub_src):
             shutil.copy2(pub_src, dest + ".pub")
