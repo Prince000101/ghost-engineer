@@ -18,12 +18,12 @@ class ConfigManager:
             self._save({"repos": [], "github_token": "", "git_name": "", "git_email": ""})
 
     def _load(self):
-        with open(self.config_path) as f:
+        with open(self.config_path, encoding="utf-8-sig") as f:
             return json.load(f)
 
     def _save(self, data):
-        with open(self.config_path, "w") as f:
-            json.dump(data, f, indent=2)
+        with open(self.config_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
 
     # ── Identity (git user) ──
 

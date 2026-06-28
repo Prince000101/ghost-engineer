@@ -2,6 +2,9 @@
 data/
 *.env
 .env.*
+ghost_engineer_config.txt
+config_backup*.txt
+*.log
 
 # Python cache
 __pycache__/
